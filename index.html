@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Registro de Pedidos</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PapaParse for CSV processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar Helpers -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2><i class="fa-solid fa-box-open"></i> <span class="logo-text">Registro de Pedidos</span></h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active"><i class="fa-solid fa-list"></i> Painel Geral</a>
+
+                <div class="helper-menu">
+                    <h3 class="helper-title">Dicas Rápidas <i class="fa-solid fa-lightbulb"></i></h3>
+                    <ul class="helper-list">
+                        <li><strong>Sem Movimentação:</strong> Acesse o BI e verifique pelo BLING o motivo.<br>
+                            <a href="https://app.powerbi.com/groups/me/apps/03c5625a-08e0-4ab2-b6eb-520e9b83c75d/reports/1159176e-234d-4510-b805-c0402f72e215/ReportSection2e3cb90f4104bfb17ead?ctid=cd99fef8-1cd3-4a2a-9bdf-15531181d65e&language=pt-BR&experience=power-bi"
+                                target="_blank" class="helper-link"><i class="fa-solid fa-link"></i> Abrir BI</a>
+                        </li>
+                        <li><strong>Cancelado:</strong> Abrir ticket DHL para saber motivo. Clonar <a
+                                href="https://dhlportal.service-now.com/now/nav/ui/classic/params/target/home.do"
+                                target="_blank" class="helper-link">QUE2876406</a>.</li>
+                        <li><strong>Entregue, não recebido:</strong> Solicitar assinatura clonando ticket <a
+                                href="https://dhlportal.service-now.com/now/nav/ui/classic/params/target/home.do"
+                                target="_blank" class="helper-link">QUE2876406</a>. Fortaleza: Grupo Liderança.</li>
+                        <li><strong>Sem Saldo:</strong> Clonar ticket <a
+                                href="https://dhlportal.service-now.com/now/nav/ui/classic/params/target/home.do"
+                                target="_blank" class="helper-link">QUE2916490</a>.</li>
+                        <li><strong>Extraviado:</strong> Cliente quer reenvio? <em>Planilha de reenvios</em>. Não quer?
+                            <em>Reembolso (Grupo Liderança)</em>.
+                        </li>
+                        <li><strong>Devolvido:</strong> Erro foi nosso? Reenvio s/ custo na planilha de reenvio.</li>
+                        <li><strong>Não Integrado:</strong> Reenvio na planilha.</li>
+                        <li><strong>Não Localizou:</strong> Abrir ticket DHL.</li>
+                        <li><strong>Link de Pagamento (Qualquer local):</strong> Solicitar no grupo liderança (Ex:
+                            Cliente recebeu itens a mais e quer ficar).</li>
+                        <li><strong>Código de Postagem (Devolução):</strong> Cliente recebeu a mais e quer devolver:
+                            Solicitar no grupo liderança.</li>
+                        <li><strong>Pedido Incompleto:</strong> Solicitar fotos dos itens + etiqueta da caixa. Enviar
+                            solicitação de reenvio + fotos no grupo liderança.</li>
+                    </ul>
+                    <div class="helper-warning">
+                        <i class="fa-solid fa-triangle-exclamation"></i> <strong>Atenção:</strong> Muito cuidado na
+                        planilha de reenvio para não bagunçar linhas ou duplicar envios.
+                    </div>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="db-status-container">
+                    <p class="db-status"><i class="fa-solid fa-server"></i> Base DHL: <span id="dbRowCount">0</span> <br><small>registros salvos</small></p>
+                    <button class="btn btn-secondary btn-small" id="importCsvBtn" style="width: 100%; margin-top: 8px;"><i class="fa-solid fa-file-import"></i> Atualizar Base CSV</button>
+                    <input type="file" id="csvFileInput" accept=".csv" style="display: none;">
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-title">
+                    <h1>Painel de Pedidos</h1>
+                    <p>Acompanhamento e resolução de problemas</p>
+                </div>
+                <div class="header-actions">
+                    <button id="addOrderBtn" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Novo
+                        Registro</button>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <!-- Statistics Cards (Clickable) -->
+                <div class="stats-grid">
+                    <div class="stat-card" data-filter="0" title="Clique para filtrar Novos">
+                        <div class="stat-icon novo"><i class="fa-solid fa-sparkles"></i></div>
+                        <div class="stat-info">
+                            <h3>Novo</h3>
+                            <p id="count-0">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-filter="1" title="Clique para filtrar Em Resolução">
+                        <div class="stat-icon em-resolucao"><i class="fa-solid fa-wrench"></i></div>
+                        <div class="stat-info">
+                            <h3>Em resolução</h3>
+                            <p id="count-1">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-filter="3" title="Clique para filtrar Atenção">
+                        <div class="stat-icon atencao"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-info">
+                            <h3>Atenção</h3>
+                            <p id="count-3">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-filter="4" title="Clique para filtrar Aguardando Retorno">
+                        <div class="stat-icon aguardando"><i class="fa-solid fa-clock"></i></div>
+                        <div class="stat-info">
+                            <h3>Aguardando</h3>
+                            <p id="count-4">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-filter="5" title="Clique para filtrar OK">
+                        <div class="stat-icon finalizado" style="background: rgba(134,239,172,0.15); color: #86efac;"><i
+                                class="fa-solid fa-check"></i></div>
+                        <div class="stat-info">
+                            <h3>OK</h3>
+                            <p id="count-5">0</p>
+                        </div>
+                    </div>
+                    <div class="stat-card" data-filter="6" title="Clique para filtrar Finalizados">
+                        <div class="stat-icon finalizado"><i class="fa-solid fa-check-double"></i></div>
+                        <div class="stat-info">
+                            <h3>Finalizados</h3>
+                            <p id="count-6">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Table Section -->
+                <div class="table-container">
+                    <div class="table-header">
+                        <h2>Registros Recentes</h2>
+                        <div class="table-search">
+                            <i class="fa-solid fa-search"></i>
+                            <input type="text" id="searchInput" placeholder="Buscar pedido...">
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table id="ordersTable">
+                            <thead>
+                                <tr>
+                                    <th>DATA</th>
+                                    <th>NF</th>
+                                    <th>Bling</th>
+                                    <th>Número Pedido</th>
+                                    <th>Origem</th>
+                                    <th>OBS</th>
+                                    <th>Status</th>
+                                    <th>Resolução</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ordersTableBody">
+                                <!-- Dynamic rows will be inserted here -->
+                            </tbody>
+                        </table>
+                        <div id="emptyState" class="empty-state">
+                            <i class="fa-solid fa-inbox"></i>
+                            <p>Nenhum pedido registrado ainda.</p>
+                            <button id="addFirstOrderBtn" class="btn btn-secondary">Registre o primeiro pedido</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal for Adding/Editing Order -->
+    <div id="orderModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Novo Registro</h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <!-- CSV Database Result Card -->
+                <div id="dhlResultCard" class="dhl-result-card" style="display: none;">
+                    <div class="dhl-card-header">
+                        <i class="fa-brands fa-dhl"></i>
+                        <span>Informações Base DHL</span>
+                    </div>
+                    <div class="dhl-card-body">
+                        <div class="dhl-info-group">
+                            <span class="dhl-label">Order ID / Rastreio</span>
+                            <span class="dhl-value"><strong id="dhlOrderId">-</strong> / <span id="dhlTracking">-</span></span>
+                        </div>
+                        <div class="dhl-info-group">
+                            <span class="dhl-label">Nota Fiscal</span>
+                            <span class="dhl-value"><strong id="dhlNf">-</strong></span>
+                        </div>
+                        <div class="dhl-info-group">
+                            <span class="dhl-label">Status DHL</span>
+                            <span class="dhl-value status-highlight" id="dhlStatus">-</span>
+                        </div>
+                        <div class="dhl-info-group">
+                            <span class="dhl-label">Data Evento</span>
+                            <span class="dhl-value" id="dhlEventDate">-</span>
+                        </div>
+                        <div class="dhl-info-group">
+                            <span class="dhl-label">Previsão</span>
+                            <span class="dhl-value" id="dhlExpectedDate">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="orderForm">
+                    <input type="hidden" id="editIndex" value="-1">
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dataInput">DATA <span class="required">*</span></label>
+                            <input type="date" id="dataInput" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="nfInput">NF</label>
+                            <input type="text" id="nfInput" inputmode="numeric" pattern="[0-9]*"
+                                placeholder="Somente números">
+                        </div>
+                        <div class="form-group">
+                            <label for="blingInput">Bling</label>
+                            <input type="text" id="blingInput" inputmode="numeric" pattern="[0-9]*"
+                                placeholder="Somente números">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="pedidoInput">Número Pedido <span class="required">*</span></label>
+                            <input type="text" id="pedidoInput" required placeholder="Número único do pedido">
+                            <span style="font-size: 11px; color: var(--primary); margin-top: 2px;"><i
+                                    class="fa-solid fa-lightbulb"></i> Dica: Adicione o número do pedido primeiro para
+                                verificar se ele já existe.</span>
+                            <div id="pedidoError" class="error-message"></div>
+                        </div>
+                        <div class="form-group">
+                            <label>Origem (Selecione)</label>
+                            <div class="custom-multi-select" id="origemSelect">
+                                <div class="select-box" onclick="toggleOrigemDropdown()">
+                                    <span id="origemLabel">Selecione as origens...</span>
+                                    <i class="fa-solid fa-chevron-down"></i>
+                                </div>
+                                <div class="select-dropdown" id="origemDropdown">
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" value="DHL" class="origem-checkbox"> DHL
+                                    </label>
+                                    <label class="dropdown-item">
+                                        <input type="checkbox" value="Fortaleza" class="origem-checkbox"> Fortaleza
+                                    </label>
+                                </div>
+                            </div>
+                            <input type="hidden" id="origemInput">
+                        </div>
+                        <div class="form-group">
+                            <label for="statusInput">Status</label>
+                            <select id="statusInput" required>
+                                <option value="0">0 - Novo</option>
+                                <option value="1">1 - Em resolução</option>
+                                <option value="2">2 - Em análise</option>
+                                <option value="3">3 - Atenção</option>
+                                <option value="4">4 - Aguardando retorno</option>
+                                <option value="5">5 - OK</option>
+                                <option value="6">6 - Finalizado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Observation Generator specific to user needs -->
+                    <div class="form-section">
+                        <h3>Gerador de Observação</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="problemaSelect">Tipo de Problema</label>
+                                <select id="problemaSelect">
+                                    <option value="">Selecione...</option>
+                                    <option value="extravio_reembolso">Extravio - reembolso</option>
+                                    <option value="extravio_reenvio">Extravio - Reenvio</option>
+                                    <option value="devolucao_correta">Devolução - endereço correto</option>
+                                    <option value="devolucao_errada">Devolução - endereço errado</option>
+                                    <option value="cancelado_dhl">Cancelado DHL</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" id="generateObsBtn" class="btn btn-secondary btn-small">Gerar
+                                Observação <i class="fa-solid fa-wand-magic-sparkles"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="obsInput">OBS</label>
+                        <textarea id="obsInput" rows="4" placeholder="Detalhes do problema..."></textarea>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="resolucaoInput">Resolução</label>
+                        <textarea id="resolucaoInput" rows="3"
+                            placeholder="O que foi feito para resolver..."></textarea>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-ghost close-modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary" id="saveOrderBtn">Salvar Registro</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div id="historyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Histórico do Pedido <span id="historyPedidoNum" style="color: var(--primary);"></span></h2>
+                <button class="close-modal"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="history-details-grid"
+                    style="margin-bottom: 24px; padding: 16px; background: var(--bg-surface-elevated); border-radius: var(--radius-md);">
+                    <div class="detail-item"
+                        style="display: flex; justify-content: space-between; align-items: center;">
+                        <span class="detail-label" style="color: var(--text-secondary); font-size: 14px;">Status
+                            Atual:</span>
+                        <span id="historyStatusBadge"></span>
+                    </div>
+                </div>
+                <h3 style="font-size: 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;"><i
+                        class="fa-solid fa-clock-rotate-left"></i> Linha do Tempo</h3>
+                <div class="timeline" id="historyTimeline">
+                    <!-- Dynamic timeline items will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal narrow-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirmar Exclusão</h2>
+            </div>
+            <div class="modal-body text-center">
+                <i class="fa-solid fa-circle-exclamation warning-icon"></i>
+                <p>Tem certeza que deseja excluir o pedido <strong id="deletePedidoNum"></strong>?</p>
+                <p class="text-muted">Esta ação não pode ser desfeita.</p>
+                <div class="form-actions center">
+                    <button type="button" class="btn btn-ghost" id="cancelDeleteBtn">Cancelar</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Excluir</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast">
+        <div class="toast-icon"><i class="fa-solid fa-check-circle"></i></div>
+        <div class="toast-message">Operação realizada com sucesso!</div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
