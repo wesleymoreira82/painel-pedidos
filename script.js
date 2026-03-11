@@ -68,6 +68,7 @@ const dhlNfEl = document.getElementById('dhlNf');
 const dhlStatusEl = document.getElementById('dhlStatus');
 const dhlEventDateEl = document.getElementById('dhlEventDate');
 const dhlExpectedDateEl = document.getElementById('dhlExpectedDate');
+const dhlDetailEl = document.getElementById('dhlDetail');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -687,6 +688,7 @@ function queryDhlDatabase() {
         dhlTrackingEl.textContent = result["TRACKING NUMBER"] || '-';
         dhlNfEl.textContent = result["NOTA FISCAL"] || '-';
         dhlStatusEl.textContent = result["STATUS"] || '-';
+        dhlDetailEl.textContent = result["DETAIL"] || '-';
         dhlEventDateEl.textContent = result["DATA EVENTO"] || '-';
         dhlExpectedDateEl.textContent = result["PREVISAO DE ENTREGA"] || '-';
         
